@@ -1,0 +1,26 @@
+{
+  "name": "@transcribemind/ai-summary-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch --env-file=../../.env src/main.ts",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@transcribemind/contracts": "*",
+    "@transcribemind/database": "*",
+    "@transcribemind/config": "*",
+    "@transcribemind/logger": "*",
+    "bullmq": "^5.13.2",
+    "ioredis": "5.10.1",
+    "openai": "^4.63.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.10",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "composite": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
+  },
+  "references": [
+    { "path": "../../packages/contracts" },
+    { "path": "../../packages/database" },
+    { "path": "../../packages/config" },
+    { "path": "../../packages/logger" }
+  ],
+  "include": ["src"]
+}

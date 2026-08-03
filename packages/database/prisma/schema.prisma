@@ -1,0 +1,72 @@
+// MVP simplification: all 3 microservices share this single Postgres database
+// through the generated Prisma Client, instead of a DB-per-service split.
+// A production evolution of this system would give each service its own
+// database and replace direct cross-service reads/writes with an outbox
+// pattern / event-carried state transfer over the existing BullMQ/Redis bus.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VideoStatus {
+  QUEUED
+  PROCESSING_AUDIO
+  TRANSCRIBING
+  ANALYZING_AI
+  COMPLETED
+  FAILED
+}
+
+enum SummaryLanguage {
+  es
+  en
+  de
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String?
+  googleId     String?  @unique
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+
+  videos Video[]
+}
+
+model Video {
+  id               String      @id @default(uuid())
+  userId           String
+  title            String?
+  originalFilename String
+  s3Key            String
+  summaryLanguage  SummaryLanguage @default(es)
+  status           VideoStatus @default(QUEUED)
+  progress         Int         @default(0)
+  durationSeconds  Float?
+  transcript       String?     @db.Text
+  transcriptSegments Json?
+  analysis         Json?
+  error            String?
+  // Set once, when status first reaches COMPLETED — deliberately NOT derived
+  // from updatedAt, which also bumps on unrelated later writes (e.g. renaming
+  // the video) and would otherwise keep resetting the retention clock.
+  completedAt      DateTime?
+  // Set when the raw video file in object storage is removed (retention
+  // cleanup job or the user's manual "liberar espacio" action) — the video
+  // row and its transcript/analysis are kept regardless.
+  fileDeletedAt    DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}

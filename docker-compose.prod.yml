@@ -1,0 +1,111 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-transcribemind}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-transcribemind}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-transcribemind}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:3
+    restart: unless-stopped
+    environment:
+      SERVICES: s3
+      S3_BUCKET: ${S3_BUCKET:-transcribemind-videos}
+      PERSISTENCE: 1
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - ./infra/localstack/init-s3.sh:/etc/localstack/init/ready.d/init-s3.sh
+
+  gateway-api:
+    build:
+      context: .
+      dockerfile: apps/gateway-api/Dockerfile
+    container_name: transcribemind-gateway-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-transcribemind}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-transcribemind}
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://localstack:4566
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      localstack:
+        condition: service_started
+    networks:
+      - default
+      - web
+
+  video-worker:
+    build:
+      context: .
+      dockerfile: apps/video-worker/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-transcribemind}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-transcribemind}
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://localstack:4566
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      localstack:
+        condition: service_started
+
+  ai-summary-service:
+    build:
+      context: .
+      dockerfile: apps/ai-summary-service/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-transcribemind}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-transcribemind}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required, e.g. https://api.transcribemind.tudominio.com}
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    container_name: transcribemind-web
+    restart: unless-stopped
+    networks:
+      - default
+      - web
+
+volumes:
+  postgres-data:
+  localstack-data:
+
+networks:
+  web:
+    external: true
