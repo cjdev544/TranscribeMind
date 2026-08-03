@@ -39,6 +39,11 @@ export function UrlUploadForm({
           {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Subir"}
         </Button>
       </form>
+      <p className="max-w-sm text-xs text-muted-foreground">
+        YouTube a veces bloquea la descarga por verificación anti-bot en este
+        servidor. Si un enlace de YouTube falla, un enlace directo al archivo
+        de video (.mp4, .mov, etc.) es la opción más confiable.
+      </p>
       {upload.isPending && (
         <p className="text-xs text-muted-foreground">
           Descargando el video desde la URL, esto puede tardar según su tamaño...

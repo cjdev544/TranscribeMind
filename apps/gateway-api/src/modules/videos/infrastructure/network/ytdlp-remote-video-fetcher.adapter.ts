@@ -2,6 +2,7 @@ import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import youtubeDl from "youtube-dl-exec";
+import type { Flags } from "youtube-dl-exec";
 import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 import type { Logger } from "@transcribemind/logger";
 import { DomainError } from "../../../../shared/kernel/domain-error.js";
@@ -28,8 +29,11 @@ function humanizeYtDlpError(stderr: string): string {
   if (/video unavailable|no longer available|has been removed/i.test(stderr)) {
     return "Ese video ya no está disponible en YouTube (puede haber sido eliminado).";
   }
-  if (/private video|sign in to confirm|age.restricted/i.test(stderr)) {
+  if (/private video|age.restricted/i.test(stderr)) {
     return "Ese video es privado o tiene restricción de edad, así que no se puede descargar.";
+  }
+  if (/sign in to confirm you.?re not a bot/i.test(stderr)) {
+    return "YouTube bloqueó momentáneamente la descarga por verificación anti-bot. Intenta de nuevo en unos minutos, o usa un enlace directo al archivo de video en su lugar.";
   }
   if (/not available in your country|blocked it (on|in)|copyright/i.test(stderr)) {
     return "Ese video no está disponible por restricciones de región o derechos de autor.";
@@ -121,19 +125,24 @@ export class YtDlpRemoteVideoFetcherAdapter implements RemoteVideoFetcherPort {
     // youtube-dl-exec bundles its own yt-dlp binary (downloaded at npm-install
     // time) and resolves the right executable name per platform, instead of
     // relying on a system-wide "yt-dlp" on PATH that may not exist.
-    const subprocess = youtubeDl.exec(
-      url,
-      {
-        noPlaylist: true,
-        maxFilesize: "2G",
-        format: "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-        mergeOutputFormat: "mp4",
-        ffmpegLocation: ffmpegInstaller.path,
-        output: join(workDir, "%(id)s.%(ext)s"),
-        newline: true,
-      },
-      { stdio: ["ignore", "pipe", "pipe"] },
-    );
+    // The "web" client (yt-dlp's default) now requires a PO token to pass
+    // YouTube's bot check, which fails hard from datacenter/VPS IPs with
+    // "Sign in to confirm you're not a bot". The android/ios clients use a
+    // different auth path that doesn't need one, at the cost of occasionally
+    // missing the highest-resolution formats. youtube-dl-exec's Flags type
+    // predates --extractor-args, hence the local type extension.
+    const flags: Flags & { extractorArgs?: string } = {
+      noPlaylist: true,
+      maxFilesize: "2G",
+      format: "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+      mergeOutputFormat: "mp4",
+      ffmpegLocation: ffmpegInstaller.path,
+      output: join(workDir, "%(id)s.%(ext)s"),
+      newline: true,
+      extractorArgs: "youtube:player_client=android,ios,web",
+    };
+
+    const subprocess = youtubeDl.exec(url, flags, { stdio: ["ignore", "pipe", "pipe"] });
 
     // yt-dlp downloads video and audio as two separate 0-100% passes (for
     // the bestvideo+bestaudio format) before muxing. There's no reliable way
