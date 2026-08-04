@@ -8,6 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: false,
       includeAssets: ["favicon.svg"],
       manifest: {
         name: "TranscribeMind",
@@ -27,6 +28,12 @@ export default defineConfig({
         // Only precache the app shell (build assets); API/WebSocket traffic
         // must always hit the network live, never be served from cache.
         globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
+        // vite-plugin-pwa only sets these two automatically when
+        // injectRegister is left on "auto" — since it's now false (we
+        // register manually below to get the auto-reload-on-update
+        // behavior), they have to be set explicitly here instead.
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ],
