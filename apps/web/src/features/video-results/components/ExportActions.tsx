@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Copy, Download, FileDown } from "lucide-react";
-import jsPDF from "jspdf";
 import { Button } from "../../../shared/ui/button.js";
 import type { Video } from "../../../shared/types/video.js";
 
@@ -37,7 +36,8 @@ export function ExportActions({ video }: { video: Video }) {
     URL.revokeObjectURL(url);
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
+    const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF();
     const text = buildReportText(video);
     const lines: string[] = doc.splitTextToSize(text, 180);
