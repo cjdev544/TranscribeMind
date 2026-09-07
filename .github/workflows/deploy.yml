@@ -1,0 +1,31 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-transcribemind
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to droplet over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/apps/transcribemind
+            git fetch origin master
+            git reset --hard origin/master
+            # The postgres-data and localstack-data named volumes are untouched
+            # by up/--build; only `docker compose down -v` or `docker volume rm`
+            # would delete them.
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker image prune -f
