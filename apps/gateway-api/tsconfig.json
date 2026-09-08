@@ -13,5 +13,6 @@
     { "path": "../../packages/config" },
     { "path": "../../packages/logger" }
   ],
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.spec.ts"]
 }

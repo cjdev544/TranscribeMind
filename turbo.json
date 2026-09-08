@@ -16,6 +16,12 @@
     "typecheck": {
       "dependsOn": ["^build"]
     },
+    "typecheck:tests": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    },
     "generate": {
       "cache": false
     }

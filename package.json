@@ -12,6 +12,8 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
+    "typecheck:tests": "turbo run typecheck:tests",
+    "test": "turbo run test",
     "db:generate": "npm run generate --workspace=@transcribemind/database",
     "db:migrate": "npm run migrate:dev --workspace=@transcribemind/database"
   },
